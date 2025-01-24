@@ -7,20 +7,20 @@ const Listing = () => {
     return savedItems
       ? JSON.parse(savedItems)
       : [
-          { id: 1, name: "John Doe", gender: "Male", age: 28, height: "6ft" },
+          { id: 1, name: "John Doe", gender: "Male", age: 28, height: "152" },
           {
             id: 2,
             name: "Jane Smith",
             gender: "Female",
             age: 24,
-            height: "5.5ft",
+            height: "160",
           },
           {
             id: 3,
             name: "Sam Johnson",
             gender: "Male",
             age: 30,
-            height: "5.8ft",
+            height: "152",
           },
         ];
   });
@@ -78,7 +78,7 @@ const Listing = () => {
       return;
     }
 
-    setItems((prev) => [
+    setItems((prev: any) => [
       ...prev,
       {
         id: prev.length + 1,
@@ -176,7 +176,7 @@ const Listing = () => {
                 <input
                   type="text"
                   name="height"
-                  placeholder="Height (e.g., 6ft)"
+                  placeholder="Height (e.g., 160cm)"
                   value={newItem.height}
                   onChange={handleInputChange}
                   className={`w-full p-2 border rounded ${
@@ -223,7 +223,7 @@ const Listing = () => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {items.map((item) => (
+          {items.map((item: any) => (
             <tr
               key={item.id}
               className="hover:bg-gray-50 transition-colors duration-200"
@@ -231,7 +231,9 @@ const Listing = () => {
               <td className="py-4 px-4 text-sm text-gray-900">{item.name}</td>
               <td className="py-4 px-4 text-sm text-gray-700">{item.gender}</td>
               <td className="py-4 px-4 text-sm text-gray-700">{item.age}</td>
-              <td className="py-4 px-4 text-sm text-gray-700">{item.height}</td>
+              <td className="py-4 px-4 text-sm text-gray-700">
+                {item.height} &nbsp;cm
+              </td>
             </tr>
           ))}
         </tbody>
