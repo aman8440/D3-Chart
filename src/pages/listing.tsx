@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Listing = () => {
@@ -7,13 +8,15 @@ const Listing = () => {
     return savedItems
       ? JSON.parse(savedItems)
       : [
-          { id: 1, name: "John Doe", gender: "Male", age: 28, height: "152" },
+          { id: 1, name: "John Doe", gender: "Male", age: 28, height: "152", designation: "CEO", parentId: null },
           {
             id: 2,
             name: "Jane Smith",
             gender: "Female",
             age: 24,
             height: "160",
+            designation: "Designer",
+            parentId: 1
           },
           {
             id: 3,
@@ -21,6 +24,17 @@ const Listing = () => {
             gender: "Male",
             age: 30,
             height: "152",
+            designation: "Manager",
+            parentId: 1
+          },
+          {
+            id: 4,
+            name: "Sant Thomas",
+            gender: "Male",
+            age: 29,
+            height: "172",
+            designation: "Developer",
+            parentId: 3
           },
         ];
   });
@@ -31,6 +45,8 @@ const Listing = () => {
     gender: "Male",
     age: "",
     height: "",
+    designation: "",
+    parentId: null as number | null,
   });
   const navigate = useNavigate();
 
@@ -42,6 +58,8 @@ const Listing = () => {
     name: false,
     age: false,
     height: false,
+    designation: false,
+    parentId: false,
   });
 
   useEffect(() => {
@@ -50,13 +68,28 @@ const Listing = () => {
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
-    setNewItem((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    if (name === 'parentId') {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const selectedParent = items.find((item: any) => item.id === Number(value));
+      setNewItem((prev) => ({
+        ...prev,
+        parentId: Number(value),
+        designation: '', // Reset designation when parent changes
+      }));
+    } else if (name === 'designation') {
+      setNewItem((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    } else {
+      setNewItem((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
-    // Clear validation error when typing
-    if (name === "name" || name === "age" || name === "height") {
+    if (["name", "age", "height", "designation", "parentId"].includes(name)) {
       setValidationErrors((prev) => ({
         ...prev,
         [name]: false,
@@ -70,6 +103,8 @@ const Listing = () => {
       name: !newItem.name,
       age: !ageNum || ageNum < 18 || ageNum > 99,
       height: !newItem.height,
+      designation: !newItem.designation,
+      parentId: !newItem.parentId,
     };
 
     setValidationErrors(errors);
@@ -87,20 +122,42 @@ const Listing = () => {
       },
     ]);
 
-    // Reset modal and form
     setNewItem({
       name: "",
       gender: "Male",
       age: "",
       height: "",
+      designation: "",
+      parentId: null,
     });
     setValidationErrors({
       name: false,
       age: false,
       height: false,
+      designation: false,
+      parentId: false,
     });
     setIsModalOpen(false);
   };
+
+  const designationOptions = [
+    "CEO", "Designer", "Developer", "Manager", "Marketing", "Sales", "Testing"
+  ];
+
+  const availableDesignations = useMemo(() => {
+    if (!newItem.parentId) return designationOptions;
+    
+    const parentDesignation = items.find((item: any) => item.id === newItem.parentId)?.designation;
+    return designationOptions.filter(option => option !== parentDesignation);
+  }, [newItem.parentId, items]);
+
+  const availableParents = useMemo(() => {
+    return items.filter((item: any) => {
+      // Exclude items that are already children
+      const isParentOfSomeone = items.find((child: any) => child.parentId === item.id);
+      return !isParentOfSomeone;
+    });
+  }, [items]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -190,6 +247,54 @@ const Listing = () => {
                 )}
               </div>
 
+              <div>
+                <select
+                  name="parentId"
+                  value={newItem.parentId || ''}
+                  onChange={handleInputChange}
+                  className={`w-full p-2 border rounded ${
+                    validationErrors.parentId ? "border-red-500" : ""
+                  }`}
+                  required
+                >
+                  <option value="">Select Parent</option>
+                  {availableParents.map((item: any) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} - {item.designation}
+                    </option>
+                  ))}
+                </select>
+                {validationErrors.parentId && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Parent is required
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <select
+                  name="designation"
+                  value={newItem.designation}
+                  onChange={handleInputChange}
+                  className={`w-full p-2 border rounded ${
+                    validationErrors.designation ? "border-red-500" : ""
+                  }`}
+                  disabled={!newItem.parentId}
+                >
+                  <option value="">Select Designation</option>
+                  {availableDesignations.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {validationErrors.designation && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Designation is required
+                  </p>
+                )}
+              </div>
+
               <div className="flex justify-between">
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -212,7 +317,7 @@ const Listing = () => {
       <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
-            {["Name", "Gender", "Age", "Height"].map((header) => (
+            {["Name", "Gender", "Age", "Height", "Designation", "Parent"].map((header) => (
               <th
                 key={header}
                 className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider"
@@ -232,7 +337,11 @@ const Listing = () => {
               <td className="py-4 px-4 text-sm text-gray-700">{item.gender}</td>
               <td className="py-4 px-4 text-sm text-gray-700">{item.age}</td>
               <td className="py-4 px-4 text-sm text-gray-700">
-                {item.height} &nbsp;cm
+                {item.height}&nbsp;cm
+              </td>
+              <td className="py-4 px-4 text-sm text-gray-700">{item.designation}</td>
+              <td className="py-4 px-4 text-sm text-gray-700">
+                {items.find((p: any) => p.id === item.parentId)?.name || 'Parent'}
               </td>
             </tr>
           ))}
