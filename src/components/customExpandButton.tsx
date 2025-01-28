@@ -11,7 +11,6 @@ interface ExpandButtonProps {
 }
 
 const CustomExpandButton = ({ node, expanded }: ExpandButtonProps) => {
-  if (!node) return null;
 
   return (
     <div className="flex items-start justify-start p-2 bg-gray-200 rounded-md hover:bg-gray-300 card-data-show">

@@ -38,12 +38,6 @@ const EmployeeDetailsCard = (props: any) => {
         </div>
       ) : (
         <div>
-          <div className="card-header">
-            <h2 className="card-team-name text-2xl font-semibold text-gray-800">
-              {props.employee.team} Team
-            </h2>
-          </div>
-          <h4 className="text-lg text-gray-700 mt-4">Team Members:</h4>
           <div className="card-body space-y-3 mt-4">
             {props.employees
               .filter(

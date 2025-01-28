@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from "react";
 import ReactDOMServer from "react-dom/server";
 import { OrgChart } from "d3-org-chart";
 import * as d3 from "d3";
-import { HierarchyNode } from "d3-hierarchy";
 import CustomNodeContent from "../components/customNodeContent";
 import CustomExpandButton from "../components/customExpandButton";
 import EmployeeDetailsCard from "../components/employeeDetailCard";
@@ -29,38 +28,108 @@ interface ChartProps {
 
 const Chart = ({ data: routeData }: ChartProps) => {
   const d3Container = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<OrgChart<any> | null>(null);
+  
   const [cardShow, setCardShow] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
-  const [chartData, setChartData] = useState<Employee[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState<string>('');
-  const chartInstance = useRef<OrgChart<any> | null>(null);
+  const [chartData, setChartData] = useState<Employee[]>(routeData || []);
 
-  const updateChart = () => {
-    if (chartInstance.current) {
-      chartInstance.current.render();
-    }
+  const initializeChart = () => {
+    if (!d3Container.current || !chartData.length) return null;
+
+    const chart = new OrgChart();
+    
+    chart
+      .container(d3Container.current as unknown as any)
+      .data(chartData)
+      .nodeWidth(() => 300)
+      .nodeHeight(() => 140)
+      .compactMarginBetween(() => 80)
+      .onNodeClick((node:any) => {
+        toggleDetailsCard(node.data.id);
+      })
+      .buttonContent((d: any) => {
+        return ReactDOMServer.renderToStaticMarkup(
+          <CustomExpandButton 
+            node={d.node} 
+            expanded={d.state.expanded} 
+          />
+        );
+      })
+      .nodeContent((d: any) => {
+        return ReactDOMServer.renderToStaticMarkup(
+          <CustomNodeContent 
+            data={d} 
+            deleteButtonId={`delete-${d.data.id}`}
+            addButtonId={`add-${d.data.id}`}
+          />
+        );
+      });
+
+    return chart;
   };
 
   useEffect(() => {
-    if (routeData && routeData.length > 0) {
-      setChartData(routeData);
+    if (!chartData.length || !d3Container.current) return;
+
+    const chart = initializeChart();
+    if (!chart) return;
+
+    chartInstance.current = chart;
+
+    chart.render();
+    const attachButtonListeners = () => {
+      const container = d3.select(d3Container.current);
+      container.selectAll('.delete-button').on('click', function (event: MouseEvent) {
+        event.stopPropagation();
+        const button = this as HTMLButtonElement;
+        const nodeId = button.id.replace('delete-', '');
+        if (confirm('Are you sure you want to delete this node?')) {
+          handleDeleteNode(nodeId);
+        }
+      });
+      container.selectAll('.add-button').on('click', function (event: MouseEvent) {
+        event.stopPropagation();
+        const button = this as HTMLButtonElement;
+        const nodeId = button.id.replace('add-', '');
+        setSelectedParentId(nodeId);
+        setShowAddForm(true);
+      });
+    };
+    attachButtonListeners();
+
+    chart.onNodeClick(() => {
+      attachButtonListeners();
+    });
+    return () => {
+      if (d3Container.current) {
+        d3Container.current.innerHTML = '';
+      }
+      chartInstance.current = null;
+    };
+  }, [chartData]);
+
+  const updateChart = () => {
+    if (!chartInstance.current) {
+      const chart = initializeChart();
+      if (chart) {
+        chartInstance.current = chart;
+        chart.render();
+      }
     } else {
-      console.warn("No data provided to Chart component");
+      chartInstance.current.render();
     }
-  }, [routeData]);
-  const toggleDetailsCard = (nodeId: string) => {
-    setCardShow(true);
-    setEmployeeId(nodeId);
   };
-  
   const handleDeleteNode = (deletedEmployeeId: string) => {
-    const updatedData = chartData.filter(emp => emp.id !== deletedEmployeeId);
+    const updatedData = chartData.filter(emp => emp['id'] != deletedEmployeeId);
     setChartData(updatedData);
     
     const existingData = JSON.parse(localStorage.getItem("items") || "[]");
-    const updatedStorageData = existingData.filter((item: Employee) => item.id !== deletedEmployeeId);
+    const updatedStorageData = existingData.filter((item: Employee) => item['id'] != deletedEmployeeId);
     localStorage.setItem("items", JSON.stringify(updatedStorageData));
+    
     if (chartInstance.current) {
       chartInstance.current.removeNode(deletedEmployeeId).render();
     }
@@ -69,6 +138,7 @@ const Chart = ({ data: routeData }: ChartProps) => {
   const handleAddEmployee = (employeeData: Employee) => {
     const updatedData = [...chartData, employeeData];
     setChartData(updatedData);
+    
     const existingData = JSON.parse(localStorage.getItem("items") || "[]");
     localStorage.setItem("items", JSON.stringify([...existingData, employeeData]));
     if (chartInstance.current) {
@@ -76,76 +146,10 @@ const Chart = ({ data: routeData }: ChartProps) => {
     }
   };
 
-  const attachEventListeners = () => {
-    const container = d3.select(d3Container.current);
-    container.selectAll('.delete-button').on('click', function (event: MouseEvent) {
-      event.stopPropagation();
-      const button = this as HTMLButtonElement;
-      const nodeId = button.id.replace('delete-', '');
-      if (confirm('Are you sure you want to delete this node?')) {
-        handleDeleteNode(nodeId);
-      }
-    });
-    container.selectAll('.add-button').on('click', function (event: MouseEvent) {
-      event.stopPropagation();
-      const button = this as HTMLButtonElement;
-      const nodeId = button.id.replace('add-', '');
-      setSelectedParentId(nodeId);
-      setShowAddForm(true);
-    });
+  const toggleDetailsCard = (nodeId: string) => {
+    setCardShow(true);
+    setEmployeeId(nodeId);
   };
-
-  useEffect(() => {
-    if (!d3Container.current || !chartData.length) return;
-
-    if (!chartInstance.current) {
-      chartInstance.current = new OrgChart();
-    }
-
-    const chart = chartInstance.current;
-    try {
-      chart
-        .container(d3Container.current as unknown as string)
-        .data(chartData)
-        .nodeWidth(() => 300)
-        .nodeHeight(() => 140)
-        .compactMarginBetween(() => 80)
-        .onNodeClick((node: HierarchyNode<Employee>) => {
-          const eventTarget = d3.select(d3Container.current);
-          const target = eventTarget.node() as HTMLElement;
-          if (!target?.closest('.delete-button') && !target?.closest('.add-button')) {
-            toggleDetailsCard(node.data.id);
-          }
-        })
-        .buttonContent((d: any) => {
-          return ReactDOMServer.renderToStaticMarkup(
-            <CustomExpandButton 
-              node={d.node} 
-              expanded={d.state.expanded} 
-            />
-          );
-        })
-        .nodeContent((d: any) => {
-          return ReactDOMServer.renderToStaticMarkup(
-            <CustomNodeContent 
-              data= {d} 
-              deleteButtonId={`delete-${d.data.id}`}
-              addButtonId={`add-${d.data.id}`}
-            />
-          );
-        });
-        chart.render()
-        attachEventListeners();
-    } catch (error) {
-      console.error("Error rendering chart:", error);
-    }
-
-    return () => {
-      if (d3Container.current) {
-        d3Container.current.innerHTML = '';
-      }
-    };
-  }, [chartData]);
 
   if (!chartData.length) {
     return (
@@ -160,7 +164,10 @@ const Chart = ({ data: routeData }: ChartProps) => {
 
   return (
     <div className="relative">
-      <ChartControls chartInstance={chartInstance.current} onChartUpdate={updateChart} />
+      <ChartControls 
+        chartInstance={chartInstance.current} 
+        onChartUpdate={updateChart} 
+      />
       <div 
         className="org-chart flex justify-between" 
         ref={d3Container}
@@ -172,7 +179,7 @@ const Chart = ({ data: routeData }: ChartProps) => {
             handleClose={() => setCardShow(false)}
           />
         )}
-         {showAddForm && (
+        {showAddForm && (
           <AddEmployeeForm
             open={showAddForm}
             onClose={() => setShowAddForm(false)}
