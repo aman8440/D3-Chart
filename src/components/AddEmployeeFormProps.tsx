@@ -43,7 +43,7 @@ const AddEmployeeForm = ({ open, onClose, onAdd, parentId }: AddEmployeeFormProp
   const [formData, setFormData] = useState<EmployeeData>({
     id: 0,
     name: '',
-    gender: '',
+    gender: 'Male',
     age: 0,
     height: '',
     designation: '',
@@ -139,7 +139,7 @@ const AddEmployeeForm = ({ open, onClose, onAdd, parentId }: AddEmployeeFormProp
       setFormData({
         id: storedEmployees.length+1,
         name: '',
-        gender: '',
+        gender: 'Male',
         age: 0,
         height: '',
         designation: '',
