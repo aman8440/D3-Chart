@@ -3,33 +3,24 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 interface NodeContentProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
-  onDeleteNode: (id: string) => void;
+  deleteButtonId: string;
+  addButtonId: string;
 }
 
-const CustomNodeContent = ({ data, onDeleteNode }: NodeContentProps) => {
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if(confirm("Are you sure you want to delete this node?")) {
-      onDeleteNode(data.data.id);
-    }
-  };
-
-  const handleAdd = ()=>{
-  }
-
+const CustomNodeContent = ({ data, deleteButtonId, addButtonId }: NodeContentProps) => {
   return (
     <div className="node-container p-4 bg-gray-100 rounded-lg shadow-md z-10">
       <div className="relative">
           <button
             type={'button'}
-            onClick={handleAdd}
-            className="absolute right-8 delete-icon z-10"
+            id={addButtonId}
+            className="absolute right-8 delete-icon z-10 add-button"
           >
             <PersonAddIcon />
           </button>
         {data.data.parentId && (
           <button
-            onClick={(e)=> handleDelete(e)}
+            id={deleteButtonId}
             type={'button'}
             className="absolute right-2 delete-icon delete-button"
           >

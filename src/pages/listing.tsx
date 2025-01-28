@@ -89,7 +89,16 @@ const Listing = () => {
       }));
     }
 
-    if (["name", "age", "height", "designation", "parentId"].includes(name)) {
+    if ([ 'CEO',
+      'CTO',
+      'Project Manager',
+      'Team Lead',
+      'Senior Developer',
+      'Junior Developer',
+      'HR Manager',
+      'Product Manager',
+      'Business Analyst',
+      'QA Engineer'].includes(name)) {
       setValidationErrors((prev) => ({
         ...prev,
         [name]: false,
@@ -141,7 +150,16 @@ const Listing = () => {
   };
 
   const designationOptions = [
-    "CEO", "Designer", "Developer", "Manager", "Marketing", "Sales", "Testing"
+    'CEO',
+    'CTO',
+    'Project Manager',
+    'Team Lead',
+    'Senior Developer',
+    'Junior Developer',
+    'HR Manager',
+    'Product Manager',
+    'Business Analyst',
+    'QA Engineer'
   ];
 
   const availableDesignations = useMemo(() => {

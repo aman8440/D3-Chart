@@ -2,12 +2,16 @@
 import { useState, useRef, useEffect } from "react";
 import ReactDOMServer from "react-dom/server";
 import { OrgChart } from "d3-org-chart";
+import * as d3 from "d3";
+import { HierarchyNode } from "d3-hierarchy";
 import CustomNodeContent from "../components/customNodeContent";
 import CustomExpandButton from "../components/customExpandButton";
 import EmployeeDetailsCard from "../components/employeeDetailCard";
+import AddEmployeeForm from "../components/AddEmployeeFormProps";
+import ChartControls from "../components/chartControls";
 
 interface Employee {
-  id: string;
+  id: any;
   name: string;
   gender: string;
   age: number;
@@ -28,6 +32,15 @@ const Chart = ({ data: routeData }: ChartProps) => {
   const [cardShow, setCardShow] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [chartData, setChartData] = useState<Employee[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedParentId, setSelectedParentId] = useState<string>('');
+  const chartInstance = useRef<OrgChart<any> | null>(null);
+
+  const updateChart = () => {
+    if (chartInstance.current) {
+      chartInstance.current.render();
+    }
+  };
 
   useEffect(() => {
     if (routeData && routeData.length > 0) {
@@ -48,13 +61,48 @@ const Chart = ({ data: routeData }: ChartProps) => {
     const existingData = JSON.parse(localStorage.getItem("items") || "[]");
     const updatedStorageData = existingData.filter((item: Employee) => item.id !== deletedEmployeeId);
     localStorage.setItem("items", JSON.stringify(updatedStorageData));
+    if (chartInstance.current) {
+      chartInstance.current.removeNode(deletedEmployeeId).render();
+    }
+  };
+
+  const handleAddEmployee = (employeeData: Employee) => {
+    const updatedData = [...chartData, employeeData];
+    setChartData(updatedData);
+    const existingData = JSON.parse(localStorage.getItem("items") || "[]");
+    localStorage.setItem("items", JSON.stringify([...existingData, employeeData]));
+    if (chartInstance.current) {
+      chartInstance.current.addNode(employeeData).render();
+    }
+  };
+
+  const attachEventListeners = () => {
+    const container = d3.select(d3Container.current);
+    container.selectAll('.delete-button').on('click', function (event: MouseEvent) {
+      event.stopPropagation();
+      const button = this as HTMLButtonElement;
+      const nodeId = button.id.replace('delete-', '');
+      if (confirm('Are you sure you want to delete this node?')) {
+        handleDeleteNode(nodeId);
+      }
+    });
+    container.selectAll('.add-button').on('click', function (event: MouseEvent) {
+      event.stopPropagation();
+      const button = this as HTMLButtonElement;
+      const nodeId = button.id.replace('add-', '');
+      setSelectedParentId(nodeId);
+      setShowAddForm(true);
+    });
   };
 
   useEffect(() => {
     if (!d3Container.current || !chartData.length) return;
 
-    const chart = new OrgChart();
-    
+    if (!chartInstance.current) {
+      chartInstance.current = new OrgChart();
+    }
+
+    const chart = chartInstance.current;
     try {
       chart
         .container(d3Container.current as unknown as string)
@@ -62,8 +110,12 @@ const Chart = ({ data: routeData }: ChartProps) => {
         .nodeWidth(() => 300)
         .nodeHeight(() => 140)
         .compactMarginBetween(() => 80)
-        .onNodeClick((d: any) => {
-          toggleDetailsCard(d.data.id);
+        .onNodeClick((node: HierarchyNode<Employee>) => {
+          const eventTarget = d3.select(d3Container.current);
+          const target = eventTarget.node() as HTMLElement;
+          if (!target?.closest('.delete-button') && !target?.closest('.add-button')) {
+            toggleDetailsCard(node.data.id);
+          }
         })
         .buttonContent((d: any) => {
           return ReactDOMServer.renderToStaticMarkup(
@@ -77,17 +129,13 @@ const Chart = ({ data: routeData }: ChartProps) => {
           return ReactDOMServer.renderToStaticMarkup(
             <CustomNodeContent 
               data= {d} 
-              onDeleteNode={(id: string) => {
-                handleDeleteNode(id);
-                chart.render();
-              }}  
+              deleteButtonId={`delete-${d.data.id}`}
+              addButtonId={`add-${d.data.id}`}
             />
           );
         });
-
-      setTimeout(() => {
-        chart.render();
-      }, 100);
+        chart.render()
+        attachEventListeners();
     } catch (error) {
       console.error("Error rendering chart:", error);
     }
@@ -111,17 +159,28 @@ const Chart = ({ data: routeData }: ChartProps) => {
   }
 
   return (
-    <div 
-      className="org-chart flex justify-between" 
-      ref={d3Container}
-    >
-      {cardShow && employeeId && (
-        <EmployeeDetailsCard
-          employees={chartData}
-          employee={chartData.find((employee) => employee.id === employeeId)}
-          handleClose={() => setCardShow(false)}
-        />
-      )}
+    <div className="relative">
+      <ChartControls chartInstance={chartInstance.current} onChartUpdate={updateChart} />
+      <div 
+        className="org-chart flex justify-between" 
+        ref={d3Container}
+      >
+        {cardShow && employeeId && (
+          <EmployeeDetailsCard
+            employees={chartData}
+            employee={chartData.find((employee) => employee.id === employeeId)}
+            handleClose={() => setCardShow(false)}
+          />
+        )}
+         {showAddForm && (
+          <AddEmployeeForm
+            open={showAddForm}
+            onClose={() => setShowAddForm(false)}
+            onAdd={handleAddEmployee}
+            parentId={selectedParentId}
+          />
+        )}
+      </div>
     </div>
   );
 };
